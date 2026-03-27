@@ -125,6 +125,32 @@ Credentials in `~/.session-env` use the `${VAR:-fallback}` pattern so that
 desktop-inherited values are reused in nested shells without re-querying the
 keychain.
 
+## Security considerations
+
+Session-env injects variables into the desktop session via `launchctl setenv` or
+`dbus-update-activation-environment`. These variables become visible to **every
+process** in the session — not just the app you intended. Any application
+(including compromised or malicious ones) can read them, and they may surface in
+crash reports, process listings (`/proc/*/environ` on Linux), or log output.
+
+**Prefer narrower alternatives when available:**
+
+- **App-native auth flows** — many tools manage their own credentials (e.g.,
+  `gh auth login`, `gcloud auth login`). These keep tokens out of the
+  environment entirely and are the safest option.
+- **Per-app configuration** — some apps accept credentials in their own config
+  files (e.g., `env` in Claude Code's `settings.json`). This limits exposure to
+  a single file on disk rather than the entire session, though the file itself
+  must be protected.
+- **CLI-sourced credentials** — `session-env get` resolves credentials on demand
+  via CLI tools or the platform keychain, without injecting them into the
+  environment. Use this in scripts and shell sessions where you can call
+  `session-env get` at the point of use.
+
+Session-env is most useful for variables like `PATH` and non-secret
+configuration, and as a fallback for apps that have no native credential
+support and only read from the environment.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started. This project
