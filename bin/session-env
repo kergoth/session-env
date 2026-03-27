@@ -1,0 +1,61 @@
+#!/bin/sh
+set -eu
+
+# --- OS detection ---
+detect_os() {
+    case "$(uname -s)" in
+        Darwin)  echo darwin ;;
+        Linux)   echo linux ;;
+        FreeBSD) echo freebsd ;;
+        *)       echo unknown ;;
+    esac
+}
+
+SESSION_ENV_OS="${SESSION_ENV_OS:-$(detect_os)}"
+SESSION_ENV_FILE="${SESSION_ENV_FILE:-$HOME/.session-env}"
+
+# --- Usage ---
+usage() {
+    cat <<'EOF'
+usage: session-env <command> [args]
+
+Commands:
+    sync <launchctl|dbus>   Inject session vars into desktop environment
+    get <name>              Resolve a credential from CLI tool or keychain
+    set <name> [value]      Store a credential in the platform keychain
+    delete <name>           Remove a credential from the platform keychain
+    vars                    List discovered session variable names
+    export                  Emit export statements for shell eval
+    install                 Install desktop session auto-start
+    uninstall               Remove desktop session auto-start
+    help                    Show this help
+EOF
+}
+
+# --- Stubs (replaced in subsequent tasks) ---
+cmd_sync()      { echo "not implemented" >&2; exit 1; }
+cmd_get()       { echo "not implemented" >&2; exit 1; }
+cmd_set()       { echo "not implemented" >&2; exit 1; }
+cmd_delete()    { echo "not implemented" >&2; exit 1; }
+cmd_vars()      { echo "not implemented" >&2; exit 1; }
+cmd_export()    { echo "not implemented" >&2; exit 1; }
+cmd_install()   { echo "not implemented" >&2; exit 1; }
+cmd_uninstall() { echo "not implemented" >&2; exit 1; }
+
+# --- Dispatch ---
+cmd="${1:-}"
+[ -n "$cmd" ] || { usage >&2; exit 2; }
+shift
+
+case "$cmd" in
+    sync)      cmd_sync "$@" ;;
+    get)       cmd_get "$@" ;;
+    set)       cmd_set "$@" ;;
+    delete)    cmd_delete "$@" ;;
+    vars)      cmd_vars "$@" ;;
+    export)    cmd_export "$@" ;;
+    install)   cmd_install "$@" ;;
+    uninstall) cmd_uninstall "$@" ;;
+    help)      usage; exit 0 ;;
+    *)         usage >&2; exit 2 ;;
+esac
