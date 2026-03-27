@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+# Ensure prerequisites are available
+
+if ! command -v uv >/dev/null 2>&1 && ! command -v uvx >/dev/null 2>&1; then
+    printf 'uv is required to run tests (uvx cram). Install from https://docs.astral.sh/uv/\n' >&2
+    exit 1
+fi
+
+printf 'All prerequisites satisfied.\n'
