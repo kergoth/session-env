@@ -32,13 +32,40 @@ Commands:
 EOF
 }
 
+# --- Discovery engine ---
+# Source ~/.session-env in a clean env -i subprocess; diff to find exports.
+# Passes through HOME and USER (needed by most session-env files).
+# Outputs: VAR=value lines, one per discovered variable, sorted by name.
+discover_vars() {
+    [ -f "$SESSION_ENV_FILE" ] || return 0
+    env -i HOME="$HOME" USER="${USER:-$(id -un)}" \
+        sh -c '. "$1"; env' _ "$SESSION_ENV_FILE" 2>/dev/null |
+    while IFS='=' read -r name rest; do
+        case "$name" in
+            HOME|USER|PWD|SHLVL|_) continue ;;
+            ''|[!A-Za-z_]*) continue ;;
+        esac
+        printf '%s=%s\n' "$name" "$rest"
+    done | sort
+}
+
+cmd_vars() {
+    discover_vars | while IFS='=' read -r name _rest; do
+        printf '%s\n' "$name"
+    done
+}
+
+cmd_export() {
+    discover_vars | while IFS='=' read -r name rest; do
+        printf 'export %s="%s"\n' "$name" "$rest"
+    done
+}
+
 # --- Stubs (replaced in subsequent tasks) ---
 cmd_sync()      { echo "not implemented" >&2; exit 1; }
 cmd_get()       { echo "not implemented" >&2; exit 1; }
 cmd_set()       { echo "not implemented" >&2; exit 1; }
 cmd_delete()    { echo "not implemented" >&2; exit 1; }
-cmd_vars()      { echo "not implemented" >&2; exit 1; }
-cmd_export()    { echo "not implemented" >&2; exit 1; }
 cmd_install()   { echo "not implemented" >&2; exit 1; }
 cmd_uninstall() { echo "not implemented" >&2; exit 1; }
 
