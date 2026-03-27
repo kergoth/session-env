@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")/.."
+
+# Install the script
+script/install
+
+# Copy example session-env if the user doesn't have one yet
+if [ ! -f "$HOME/.session-env" ]; then
+    cp example/session-env.example "$HOME/.session-env"
+    printf 'Created ~/.session-env from example — edit it to taste.\n'
+else
+    printf '~/.session-env already exists, skipping.\n'
+fi
+
+# Enable desktop auto-start
+session-env install

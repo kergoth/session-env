@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+PREFIX="${PREFIX:-$HOME/.local}"
+
+rm -f "$PREFIX/bin/session-env"
+printf 'Removed session-env from %s/bin/session-env\n' "$PREFIX"

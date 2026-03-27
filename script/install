@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+PREFIX="${PREFIX:-$HOME/.local}"
+
+install -d "$PREFIX/bin"
+install -m 755 "$(cd "$(dirname "$0")/.." && pwd)/bin/session-env" "$PREFIX/bin/session-env"
+printf 'Installed session-env to %s/bin/session-env\n' "$PREFIX"

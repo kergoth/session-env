@@ -1,0 +1,28 @@
+#!/bin/sh
+# ~/.session-env — sourced by session-env, shell profiles, and desktop injection.
+# Every 'export' here becomes a session variable injected into your DE.
+
+# --- PATH ---
+# Build the PATH you want GUI apps and desktop terminals to see.
+# This replaces the default (minimal) launchd/dbus PATH entirely.
+export PATH="$HOME/.local/bin:$HOME/.brew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+# --- Credentials ---
+# Prefer CLI tool auth when available (no keychain entry needed).
+# Fall back to keychain for credentials without a CLI source.
+
+# gh auth login -> gh auth token (CLI source, no keychain needed)
+if command -v gh >/dev/null 2>&1; then
+    export GITHUB_TOKEN="${GITHUB_TOKEN:-$(GITHUB_TOKEN= gh auth token 2>/dev/null)}"
+fi
+
+# Keychain-only credential (store with: session-env set CLAUDE_CODE_OAUTH_TOKEN "...")
+if command -v session-env >/dev/null 2>&1; then
+    export CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(session-env get CLAUDE_CODE_OAUTH_TOKEN 2>/dev/null)}"
+fi
+
+# --- Conditionals ---
+# Engineers can use full shell logic without a template engine.
+# if [ "$(uname -s)" = "Darwin" ]; then
+#     export HOMEBREW_NO_ANALYTICS=1
+# fi
