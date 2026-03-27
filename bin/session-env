@@ -171,8 +171,28 @@ cmd_delete() {
     keychain_delete "$name"
 }
 
+cmd_sync() {
+    backend="${1:-}"
+    case "$backend" in
+        launchctl|dbus) ;;
+        '') printf 'usage: session-env sync <launchctl|dbus>\n' >&2; exit 2 ;;
+        *)  printf 'unknown backend: %s\n' "$backend" >&2; exit 2 ;;
+    esac
+
+    discover_vars | while IFS='=' read -r name val; do
+        case "$backend" in
+            launchctl)
+                target_uid=$(launchctl manageruid 2>/dev/null || id -u)
+                launchctl asuser "$target_uid" launchctl setenv "$name" "$val"
+                ;;
+            dbus)
+                dbus-update-activation-environment "$name=$val"
+                ;;
+        esac
+    done
+}
+
 # --- Stubs (replaced in subsequent tasks) ---
-cmd_sync()      { echo "not implemented" >&2; exit 1; }
 cmd_install()   { echo "not implemented" >&2; exit 1; }
 cmd_uninstall() { echo "not implemented" >&2; exit 1; }
 
