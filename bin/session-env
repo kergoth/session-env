@@ -13,6 +13,13 @@ detect_os() {
 
 SESSION_ENV_OS="${SESSION_ENV_OS:-$(detect_os)}"
 SESSION_ENV_FILE="${SESSION_ENV_FILE:-$HOME/.session-env}"
+SESSION_ENV_SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+SESSION_ENV_LAUNCHAGENT_DIR="${SESSION_ENV_LAUNCHAGENT_DIR:-$HOME/Library/LaunchAgents}"
+SESSION_ENV_AUTOSTART_DIR="${SESSION_ENV_AUTOSTART_DIR:-$HOME/.config/autostart}"
+
+LAUNCHAGENT_LABEL="com.session-env"
+LAUNCHAGENT_FILE="$SESSION_ENV_LAUNCHAGENT_DIR/$LAUNCHAGENT_LABEL.plist"
+AUTOSTART_FILE="$SESSION_ENV_AUTOSTART_DIR/session-env.desktop"
 
 # --- Usage ---
 usage() {
@@ -192,9 +199,85 @@ cmd_sync() {
     done
 }
 
-# --- Stubs (replaced in subsequent tasks) ---
-cmd_install()   { echo "not implemented" >&2; exit 1; }
-cmd_uninstall() { echo "not implemented" >&2; exit 1; }
+cmd_install() {
+    case "$SESSION_ENV_OS" in
+        darwin)
+            mkdir -p "$SESSION_ENV_LAUNCHAGENT_DIR"
+            cat > "$LAUNCHAGENT_FILE" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>$LAUNCHAGENT_LABEL</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>$SESSION_ENV_SELF</string>
+		<string>sync</string>
+		<string>launchctl</string>
+	</array>
+
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>StandardOutPath</key>
+	<string>$HOME/Library/Logs/session-env.log</string>
+	<key>StandardErrorPath</key>
+	<string>$HOME/Library/Logs/session-env.log</string>
+</dict>
+</plist>
+EOF
+            printf 'Installed %s\n' "$LAUNCHAGENT_FILE" >&2
+            printf 'Run "launchctl load %s" to activate now, or it will start at next login.\n' "$LAUNCHAGENT_FILE" >&2
+            ;;
+        linux|freebsd)
+            mkdir -p "$SESSION_ENV_AUTOSTART_DIR"
+            cat > "$AUTOSTART_FILE" << EOF
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Session Environment
+Comment=Inject session vars into the desktop activation environment
+Exec=$SESSION_ENV_SELF sync dbus
+X-KDE-autostart-after=panel
+X-KDE-StartupNotify=false
+EOF
+            printf 'Installed %s\n' "$AUTOSTART_FILE" >&2
+            printf 'Will activate at next login.\n' >&2
+            ;;
+        *)
+            printf 'unsupported OS: %s\n' "$SESSION_ENV_OS" >&2
+            exit 1
+            ;;
+    esac
+}
+
+cmd_uninstall() {
+    case "$SESSION_ENV_OS" in
+        darwin)
+            if [ -f "$LAUNCHAGENT_FILE" ]; then
+                launchctl unload "$LAUNCHAGENT_FILE" 2>/dev/null || true
+                rm -f "$LAUNCHAGENT_FILE"
+                printf 'Removed %s\n' "$LAUNCHAGENT_FILE" >&2
+            else
+                printf 'No LaunchAgent installed.\n' >&2
+            fi
+            ;;
+        linux|freebsd)
+            if [ -f "$AUTOSTART_FILE" ]; then
+                rm -f "$AUTOSTART_FILE"
+                printf 'Removed %s\n' "$AUTOSTART_FILE" >&2
+            else
+                printf 'No autostart entry installed.\n' >&2
+            fi
+            ;;
+        *)
+            printf 'unsupported OS: %s\n' "$SESSION_ENV_OS" >&2
+            exit 1
+            ;;
+    esac
+}
 
 # --- Dispatch ---
 cmd="${1:-}"
