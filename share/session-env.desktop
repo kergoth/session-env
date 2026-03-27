@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Session Environment
+Comment=Inject session vars into the desktop activation environment
+Exec=@@SESSION_ENV_BIN@@ sync dbus
+X-KDE-autostart-after=panel
+X-KDE-StartupNotify=false
