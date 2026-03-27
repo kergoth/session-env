@@ -61,11 +61,118 @@ cmd_export() {
     done
 }
 
+# --- CLI credential sources ---
+# Returns the value from a tool's own auth, if available.
+# Add new CLI-sourced credentials here.
+lookup_cli() {
+    case "$1" in
+        GITHUB_TOKEN)
+            command -v gh >/dev/null 2>&1 || return 1
+            env GITHUB_TOKEN= gh auth token 2>/dev/null
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# --- Platform keychain ---
+keychain_get() {
+    case "$SESSION_ENV_OS" in
+        darwin)
+            command -v security >/dev/null 2>&1 || return 1
+            security find-generic-password -s "$1" -a "${USER:-$(id -un)}" -w 2>/dev/null
+            ;;
+        linux|freebsd)
+            command -v secret-tool >/dev/null 2>&1 || return 1
+            secret-tool lookup service session-env key "$1" 2>/dev/null
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+keychain_set() {
+    case "$SESSION_ENV_OS" in
+        darwin)
+            command -v security >/dev/null 2>&1 || { echo "security command not found" >&2; exit 1; }
+            security add-generic-password -U -s "$1" -a "${USER:-$(id -un)}" -w "$2" >/dev/null
+            ;;
+        linux|freebsd)
+            command -v secret-tool >/dev/null 2>&1 || { echo "secret-tool not found" >&2; exit 1; }
+            printf '%s' "$2" |
+                secret-tool store --label="$1" service session-env key "$1" >/dev/null
+            ;;
+        *)
+            printf 'unsupported OS for keychain: %s\n' "$SESSION_ENV_OS" >&2
+            exit 1
+            ;;
+    esac
+}
+
+keychain_delete() {
+    case "$SESSION_ENV_OS" in
+        darwin)
+            command -v security >/dev/null 2>&1 || { echo "security command not found" >&2; exit 1; }
+            security delete-generic-password -s "$1" -a "${USER:-$(id -un)}" >/dev/null
+            ;;
+        linux|freebsd)
+            command -v secret-tool >/dev/null 2>&1 || { echo "secret-tool not found" >&2; exit 1; }
+            secret-tool clear service session-env key "$1" >/dev/null
+            ;;
+        *)
+            printf 'unsupported OS for keychain: %s\n' "$SESSION_ENV_OS" >&2
+            exit 1
+            ;;
+    esac
+}
+
+cmd_get() {
+    name="${1:-}"
+    [ -n "$name" ] || { printf 'usage: session-env get <name>\n' >&2; exit 2; }
+
+    # Prefer CLI source
+    if value=$(lookup_cli "$name" 2>/dev/null) && [ -n "$value" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
+
+    # Fall back to keychain
+    if value=$(keychain_get "$name") && [ -n "$value" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
+
+    # Not found — exit 0 with no output
+    return 0
+}
+
+cmd_set() {
+    name="${1:-}"
+    [ -n "$name" ] || { printf 'usage: session-env set <name> [value]\n' >&2; exit 2; }
+
+    if [ $# -gt 1 ]; then
+        value="$2"
+    else
+        if [ -t 0 ]; then
+            printf 'missing value; pass as argument or pipe on stdin\n' >&2
+            exit 2
+        fi
+        IFS= read -r value || value=
+    fi
+
+    keychain_set "$name" "$value"
+}
+
+cmd_delete() {
+    name="${1:-}"
+    [ -n "$name" ] || { printf 'usage: session-env delete <name>\n' >&2; exit 2; }
+    keychain_delete "$name"
+}
+
 # --- Stubs (replaced in subsequent tasks) ---
 cmd_sync()      { echo "not implemented" >&2; exit 1; }
-cmd_get()       { echo "not implemented" >&2; exit 1; }
-cmd_set()       { echo "not implemented" >&2; exit 1; }
-cmd_delete()    { echo "not implemented" >&2; exit 1; }
 cmd_install()   { echo "not implemented" >&2; exit 1; }
 cmd_uninstall() { echo "not implemented" >&2; exit 1; }
 
